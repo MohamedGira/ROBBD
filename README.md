@@ -1,10 +1,10 @@
-**[ROBBD Checker]{.ul}**
+# ROBBD Checker
 
 The purpose of this project is to create a ROBDD constructor. It has
 various features such as visualization and comparisons between different
 techniques such as Truth table or ROBDD comparison.
 
-**[Pre-requisites]{.ul}**
+## Pre-requisites
 
 In order to be able to use this program you first need to do the
 following:
@@ -17,7 +17,7 @@ following:
     -   Note: on installation, you must tick "add to PATH" check box in
         order for it to work.
 
-**[Usage]{.ul}**
+## Usage
 
 You can create ROBDD objects and construct them using " construct()
 "method by passing any Boolean expression in similar formats as follows
@@ -29,7 +29,7 @@ You can visualize the graph as follows
 ![Text Description automatically
 generated](media/image2.png)
 
-**[output]{.ul}**
+## output
 
 ![](media/image3.png)
 
