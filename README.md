@@ -1,11 +1,11 @@
+# ROBBD Checker 
 
-**[ROBBD Checker]{.underline}**
 
 The purpose of this project is to create a ROBDD constructor. It has
 various features such as visualization and comparisons between different
 techniques such as Truth table or ROBDD comparison.
 
-**[Pre-requisites]{.underline}**
+## Pre-requisites 
 
 In order to be able to use this program you first need to do the
 following:
