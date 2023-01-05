@@ -521,8 +521,10 @@ class ROBDD:
     Takes input in form of :A OR A AND ( A XOR B ) OR B for example, and construct the tree accordingly
     """
     sop=SOPGenerator()
-    
-    string_expression=sop.generate_SOP(string_expression)
+    try:
+      string_expression=sop.generate_SOP(string_expression)
+    except:
+      print('non usual input')
 
     factors=self.extract_variables(string_expression)[0]
     factors= list(sorted(factors,reverse=True))
@@ -699,8 +701,8 @@ def compare_expressions(exp1,exp2):
     aa=input('would u like to see the ROBDD visuialization? [1 , 0]: ')
     
     if aa!='0':
-      g.render(exp1.replace('|', ' OR ').replace('*', ' AND '),path,view=True)
-      g2.render(exp2,path,view=True)
+      g.render(exp1.replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
+      g2.render(exp2.replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
   
     aa=input('would u like to see the truth table? [1 , 0]: ')
     if aa!='0':
@@ -725,11 +727,12 @@ def compare_expressions(exp1,exp2):
 
 #test cases 
 
-#s= " A'B' + A'B + AB' + AB " #old subscription, WONT WORK FOR NOW
+#s= " A'B' + A'B + AB' + AB " #old subscription, MAY WONT WORK FOR NOW
 
 # You can any of the following formats
-s= " ( A XOR B ) * ( C XOR D ) "
-s1= " ( D ^ C ) & ( B ^ A ) "
+#s= " A * B  + ! A * C + A * ! B * C  "
+s= " A * B * C + ! A + A * ! B * C"
+s1= " ! A + C + B * ! B "
 compare_expressions(s,s1)
 
 
@@ -741,6 +744,7 @@ s1 = " A AND ! A + B & ~ B "
 
 s = " ( A XOR B ) AND ( C XOR NOT D ) "
 s1=' A OR B AND C OR ( C XOR A ) '
+
 
 
 
