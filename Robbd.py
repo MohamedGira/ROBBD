@@ -655,11 +655,12 @@ def preorder_traverse(root):
     preorder_traverse(root.high)
 
 
-def draw_graph(root):
+def draw_graph(root,labe2l=None):
    # Graphically represents the given ROBDD using graphviz.
     g = graphviz.Digraph(format='pdf')
     g.attr(rankdir='TB')
     g.attr('node', shape='circle')
+    g.attr(label=labe2l)
     draw_nodes=[]
     def draw_node(node):
        # Recursively draws the given node and all its children.
@@ -686,8 +687,8 @@ def compare_expressions(exp1,exp2):
     robdd1,robdd2=ROBDD(),ROBDD()
     robdd1.construct(exp1)
     robdd2.construct(exp2)
-    g=draw_graph(robdd1.root)
-    g2=draw_graph(robdd2.root)
+    g=draw_graph(robdd1.root,exp1)
+    g2=draw_graph(robdd2.root,exp2)
     print('_______________________________________________________')
     print('comparing: ',exp1 , 'with', exp2)
     if robdd1.compare_nodes(robdd1.root,robdd2.root):
@@ -720,39 +721,26 @@ def compare_expressions(exp1,exp2):
 
 
 
-#s= " A'B' + A'B + AB' + AB " #old subscription, won't work for now
 
 
 #test cases 
 
+#s= " A'B' + A'B + AB' + AB " #old subscription, WONT WORK FOR NOW
 
+# You can any of the following formats
 s= " ( A XOR B ) * ( C XOR D ) "
 s1= " ( D ^ C ) & ( B ^ A ) "
 compare_expressions(s,s1)
 
 
 s= " NOT A AND NOT B OR NOT A AND B OR A AND NOT B OR A AND B"
-
 s1 = "(  NOT D XOR C ) AND ( B XOR A ) "
 
-compare_expressions(s,s1)
-
 s= " ( A * B ) OR ( NOT A AND B ) | ( A XOR NOT B ) OR ( NOT A AND NOT B )"
-
 s1 = " A AND ! A + B & ~ B "
 
-compare_expressions(s,s1)
-
 s = " ( A XOR B ) AND ( C XOR NOT D ) "
-
-print(gen.generate_SOP(s))
-
 s1=' A OR B AND C OR ( C XOR A ) '
-
-compare_expressions(s,s1)
-
-
-
 
 
 
