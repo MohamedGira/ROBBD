@@ -473,6 +473,8 @@ class ROBDD:
           '1':1,
       }
       thisnode= self.create_node(my_node_variables.pop(),lst[boolean_values[out[0]]],lst[boolean_values[out[1]]])
+      lst[boolean_values[out[1]]].parents.append(thisnode)
+      lst[boolean_values[out[0]]].parents.append(thisnode)
       return thisnode
     elif len(my_node_variables)==0:
       return None
@@ -541,26 +543,29 @@ class ROBDD:
      of them, remove it and do corresponding changes(update its parent to ponit to the other node, update this and the other node's parents list)
      2- iterate over each node, if it low and high edges point to the same node, remove it and do corresponding changes made in step 1
     """
+    
     toerase=[]
     for i,node in enumerate (self.nodes):
       if (len(node.parents)!=0):
         for j,node2 in enumerate(self.nodes):
           if(j>i):
             if (self.compare_nodes(node,node2)):
- 
               for parent in node.parents:
-                if(True):
-                  if(self.compare_nodes(parent.low,node)):
-                    parent.low=node2
-                    if i not in toerase:
-                      toerase.append(i)
-                  if(self.compare_nodes(parent.high,node)):
-                    parent.high=node2
-                    if i not in toerase:
-                      toerase.append(i)
-                  node.parents.remove(parent)
-                  node2.parents.append(parent)
-              continue    
+                if(parent.low==node):
+                  parent.low=node2
+                  if i not in toerase:
+                    toerase.append(i)
+                if(parent.high==node):
+                  parent.high=node2
+                  if i not in toerase:
+                    toerase.append(i)
+
+                node2.parents.append(parent)
+              while len(node.parents)>0:
+                node.parents.pop()
+                  
+
+               # print([t.variable for t in node.parents],node)
     
     for i in reversed(toerase):
         del self.nodes[i]
@@ -570,6 +575,7 @@ class ROBDD:
     toerase=[]
     for i,node in enumerate (self.nodes):
       if self.compare_nodes(node.low,node.high) and node.high!=None:
+        # node low equals node high
         for parent in node.parents:
           if(self.compare_nodes(parent.low,node)):
             parent.low=node.low
@@ -579,15 +585,23 @@ class ROBDD:
             parent.high=node.low
             if i not in toerase:
               toerase.append(i)
-          node.low.parents.append(parent)
-          node.low.parents.remove(node)
+            node.low.parents.append(parent)
+              
+        try:
+          while len(node.low.parents)>0:
+              node.low.parents.pop()
+        except:
+          
+          print("couldn't remove", node , 'from', node.low,' parents ')
+          
         if node==self.root:
             toerase.append(i)
             self.root=node.low
    
     for i in reversed(toerase):
           del self.nodes[i]
-  
+   # print('done trimming')
+
   
   def evaluate(self,expression):
     """takes string expression, and return the robdd output"""
@@ -727,19 +741,25 @@ def compare_expressions(exp1,exp2):
 
 #test cases 
 
-#s= " A'B' + A'B + AB' + AB " #old subscription, MAY WONT WORK FOR NOW
+#s= " A'B' + A'B + AB' + AB " #old subscription, MIGHT NOT WORK FOR NOW
 
 # You can any of the following formats
 #s= " A * B  + ! A * C + A * ! B * C  "
-s= " A * B * C + ! A + A * ! B * C"
+#s= " A * B * C + ! A + A * ! B * C"
+s = " ( NOT D XOR C ) AND ( B XOR A ) AND ( E OR ! E ) * ( E OR F ) AND G XOR X AND Y OR Z "
+
 s1= " ! A + C + B * ! B "
+
+
 compare_expressions(s,s1)
+s = " A OR B XOR C"
+
 
 
 s= " NOT A AND NOT B OR NOT A AND B OR A AND NOT B OR A AND B"
-s1 = "(  NOT D XOR C ) AND ( B XOR A ) "
+s1 = "(  NOT D XOR C ) AND ( B XOR A )  "
 
-s= " ( A * B ) OR ( NOT A AND B ) | ( A XOR NOT B ) OR ( NOT A AND NOT B )"
+s= " ( A * B ) OR ( NOT A AND B ) | ( A XOR NOT B ) OR ( NOT A AND NOT B ) "
 s1 = " A AND ! A + B & ~ B "
 
 s = " ( A XOR B ) AND ( C XOR NOT D ) "
