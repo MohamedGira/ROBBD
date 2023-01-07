@@ -974,7 +974,7 @@ def compare_appraoches(exp1):
 
 
 
-#test cases 
+#test cases  
 
 #s= " A'B' + A'B + AB' + AB " #old subscription, MIGHT NOT WORK FOR NOW
 
