@@ -518,7 +518,7 @@ class ROBDD:
       
       return thisnode
 
-  def build_tree2(self,string_expression,my_node_variables):
+  def build_tree2(self,string_expression,my_node_variables):#new approach, optimized bulding, rather than full bulid then trimming
     """
     input: takes a string expression
     algorithm: 
@@ -526,11 +526,12 @@ class ROBDD:
     2- pop it from variables list
     3- create a node with this variable
     4- get positive and negative cofactors of this var
-    5- recursivley call build_tree with the remaining tokens and positive and negative cofactor
+    5- recursivley call build_tree2 with the remaining tokens and positive and negative cofactor
       on each edge of our node
     5.1- ::edited: you should pick a variable to split upon, in the current case, each new node 
       will have randomly different variable to split upon
-    6 return our node * if unique else return the similar one *
+    6  - return our node * if unique else return the similar, already existing one *
+    6.1- if a node's low and high branches point to the same child, the child is returned instead  
     """
     
     string_expression= self.spacify_string(string_expression)
@@ -645,7 +646,8 @@ class ROBDD:
       self.root=self.myfalse
     else:
       self.root = self.build_tree(string_expression,factors)
-  def parse2(self,string_expression):
+ 
+  def parse2(self,string_expression): #new approach, calls new build_tree2 function
     """
     the Robdd construcor.
     Takes input in form of :A OR A AND ( A XOR B ) OR B for example, and construct the tree accordingly
@@ -729,47 +731,8 @@ class ROBDD:
     for i in reversed(toerase):
           del self.nodes[i]
    # print('done trimming')
-    print('trimming new took: ',datetime.now()-now)
-  def trim_bdd2(self):
-    """
-    algorithm:
-     1- iterate over each node, compare it to the other nodes, if it is similar to one 
-     of them, remove it and do corresponding changes(update its parent to ponit to the other node, update this and the other node's parents list)
-     2- iterate over each node, if it low and high edges point to the same node, remove it and do corresponding changes made in step 1
-    """
-    now =datetime.now()
-    #remove nodes that lead to same result in low or high edges
+    print('trimming  took: ',datetime.now()-now)
 
-    toerase=[]
-    for i,node in enumerate (self.nodes):
-      if self.compare_nodes(node.low,node.high) and node.high!=None:
-        # node low equals node high
-        for parent in node.parents:
-          if(self.compare_nodes(parent.low,node)):
-            parent.low=node.low
-            if i not in toerase:
-              toerase.append(i)
-          if(self.compare_nodes(parent.high,node)):
-            parent.high=node.low
-            if i not in toerase:
-              toerase.append(i)
-            node.low.parents.append(parent)
-              
-        try:
-          node.parents.clear()
-        except:
-          
-          print("couldn't remove", node , 'from', node.low,' parents ')
-          
-        if node==self.root:
-            toerase.append(i)
-            self.root=node.low
-   
-    for i in reversed(toerase):
-          del self.nodes[i]
-   # print('done trimming')
-    print('trimming new took: ',datetime.now()-now)
-  
   def evaluate(self,expression):
     """takes string expression, and return the robdd output"""
     if self.root is None:
@@ -825,8 +788,6 @@ class ROBDD:
   def construct2(self,expression):
     self.parse2(expression)
 
-    
-
 
 def preorder_traverse(root):
   """
@@ -841,7 +802,6 @@ def preorder_traverse(root):
 
     # Traverse the right subtree
     preorder_traverse(root.high)
-
 
 def draw_graph(root,labe2l=None):
    # Graphically represents the given ROBDD using graphviz.
@@ -917,19 +877,25 @@ def compare_expressions(exp1,exp2):
 
     return robdd1.compare_nodes(robdd1.root,robdd2.root)
 
-
 def compare_appraoches(exp1):
+    """
+    for testing purposes, takes an expression, and build an robdd tree using 2 approaches.
+    1- build a BDD tree, then optimizing it by removing redundancy and merging isomorphic nodes
+    2- build an ROBDD tree from the beginning, using memoization to check if the node to be added already exists
+       if so, it uses the already created node instead of adding new one, also if a node found to be of the same positive
+       and negative cofactors, it uses one of these child nodes instead of the created nodes to as a reduction teqnique
+    """
     robdd1,robdd2=ROBDD(),ROBDD()
     constr=datetime.now()
+    print('comparing: ',exp1 , 'with building then trimming and trimming itself')
     robdd1.construct(exp1)
+
     print('old approach construction took: ' ,datetime.now()-constr)
     constr=datetime.now()
     robdd2.construct2(exp1)
     print('new approach construction took: ' ,datetime.now()-constr)
     g=draw_graph(robdd1.root,exp1)
     g2=draw_graph(robdd2.root,exp1+'appraoch2')
-    print('_______________________________________________________')
-    print('comparing: ',exp1 , 'with building then trimming and trimming itself')
     now = datetime.now()
     if robdd1.compare_nodes(robdd1.root,robdd2.root):
       print("from ROBDD: Expressions are identical")
@@ -937,8 +903,9 @@ def compare_appraoches(exp1):
       print("from ROBDD: Expressions are not identical")
     after= datetime.now()
     d1=after-now
+    print('______________________________________________________________________________________________________________')
 
-    """ aa='1'
+    aa='1'
     while (aa!='0'):
       aa=input('would u like to see the ROBDD visuialization? [1 , 0]: ')
       if aa=='0':
@@ -964,7 +931,7 @@ def compare_appraoches(exp1):
     d2=after-now
 
     print("ROBDD verification  approach took: ", d1)
-    print("Truth table verification approach took: ", d2) """
+    print("Truth table verification approach took: ", d2)
 
     return robdd1.compare_nodes(robdd1.root,robdd2.root)
 
@@ -976,14 +943,17 @@ def compare_appraoches(exp1):
 
 #test cases  
 
-#s= " A'B' + A'B + AB' + AB " #old subscription, MIGHT NOT WORK FOR NOW
+s= " A'B' + A'B + AB' + AB " #old subscription, MIGHT NOT WORK FOR NOW
+compare_appraoches(s)
 
 # You can any of the following formats
-#s= " A * B  + ! A * C + A * ! B * C  "
-#s= " A * B * C + ! A + A * ! B * C"
+s= " A * B  + ! A * C + A * ! B * C  "
+compare_appraoches(s)
+
+s= " A * B * C + ! A + A * ! B * C"
 
 s1 = " ( NOT D XOR C ) AND ( B XOR A ) AND ( E OR ! E ) * ( E OR F ) AND G XOR X AND Y OR Z OR V OR N OR C " # will take long time
-#compare_appraoches(s1)
+compare_appraoches(s)
 s= " ! A + C + B * ! B "
 
 s = " A OR B XOR C"
@@ -994,7 +964,7 @@ s= " ! ( ! ( ! A ) ) "
 s= ' ab + cd + ef'
 s1= ' ab + ef + cd '
 
-compare_expressions(s,s1)
+#compare_expressions(s,s1)
 
 
 s= " NOT A AND NOT B OR NOT A AND B OR A AND NOT B OR A AND B"
