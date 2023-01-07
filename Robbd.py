@@ -121,7 +121,7 @@ class SOPGenerator:
                             
                             # get the reuslt of this expression
                             nxt=self.get_until_close(tokens,ti+1)
-                            print(' '.join(tokens[ti+2:nxt]))
+                            # print(' '.join(tokens[ti+2:nxt]))
                             operand= self.parse_boolean_function(' '.join(tokens[ti+2:nxt]))
                             operand=boolean_values[operand]
                            # print(''.join(tokens[ti+2:nxt]),'with result of ',operand)
@@ -359,6 +359,10 @@ class ROBDD:
     node = BDDNode(variable, low, high,parent)
     self.nodes.append(node)
     return node
+  def create_node2 (self, variable, low, high,parent=None):
+    """creates a node and add it to the diagram nodes list"""
+    node = BDDNode(variable, low, high,parent)
+    return node
 
   def spacify_string(self,s):
     """
@@ -514,6 +518,101 @@ class ROBDD:
       
       return thisnode
 
+  def build_tree2(self,string_expression,my_node_variables):
+    """
+    input: takes a string expression
+    algorithm: 
+    1- picks a variable
+    2- pop it from variables list
+    3- create a node with this variable
+    4- get positive and negative cofactors of this var
+    5- recursivley call build_tree with the remaining tokens and positive and negative cofactor
+      on each edge of our node
+    5.1- ::edited: you should pick a variable to split upon, in the current case, each new node 
+      will have randomly different variable to split upon
+    6 return our node * if unique else return the similar one *
+    """
+    
+    string_expression= self.spacify_string(string_expression)
+    
+    #print(string_expression)
+    if len(my_node_variables)==1:
+      #here we have 1 term, we can evaluate it using evaluate
+      tokens=[i for i in string_expression.split(' ') if i !='']
+      myvar=my_node_variables[0]
+      insertat=[]
+      for i in range(len(tokens[0:-1])):
+        if tokens[i]!= '+' and tokens[i+1] !='+':
+          insertat.append(i+1)
+      for i in range(len(tokens)):
+        if tokens[i]==myvar+"'":
+            tokens[i] = 'NOT '+myvar
+      for i in reversed(insertat):
+        tokens.insert(i,'AND')
+      string_expression=' '.join(tokens)
+      
+      out=[SOPGenerator().evaluate(string_expression,i)for i in ['0','1']]
+      
+      lst=[self.myfalse,self.myture]
+      boolean_values = {
+          'True': 1,
+          'False': 0,
+          0:0,
+          1:1,
+          '0':0,
+          '1':1,
+      }
+      thisnode= self.create_node2(my_node_variables.pop(),lst[boolean_values[out[0]]],lst[boolean_values[out[1]]])
+      if self.compare_nodes(lst[boolean_values[out[0]]],lst[boolean_values[out[1]]]):
+        return lst[boolean_values[out[0]]]
+      for node in self.nodes:
+        if self.compare_nodes(node,thisnode):
+          lst[boolean_values[out[1]]].parents.append(node)
+          lst[boolean_values[out[0]]].parents.append(node)
+          return node
+          
+      lst[boolean_values[out[1]]].parents.append(thisnode)
+      lst[boolean_values[out[0]]].parents.append(thisnode)   
+      self.nodes.append(thisnode)
+
+
+      return thisnode
+    elif len(my_node_variables)==0:
+      return None
+    else:
+      my_node_variable=my_node_variables.pop()
+      pos_cofactors,neg_cofactors=self.generate_positive_negative_cofactors(string_expression,my_node_variable)
+
+      myposchild=None
+      mynegchild=None
+      if(neg_cofactors==True):
+        mynegchild=self.myture
+      elif(neg_cofactors==False):
+        mynegchild=self.myfalse
+      else:
+        mynegchild=self.build_tree2(neg_cofactors,my_node_variables.copy())
+      
+      if(pos_cofactors==True):
+        myposchild=self.myture
+      elif(pos_cofactors==False):
+        myposchild=self.myfalse
+      else:
+        myposchild=self.build_tree2(pos_cofactors,my_node_variables.copy())
+      
+      if self.compare_nodes(mynegchild,myposchild):
+        return myposchild
+
+      thisnode=self.create_node2 (my_node_variable,mynegchild,myposchild)
+      for node in self.nodes:
+        if self.compare_nodes(node,thisnode):
+          myposchild.parents.append(node)
+          mynegchild.parents.append(node)
+          return node
+          
+      myposchild.parents.append(thisnode)
+      mynegchild.parents.append(thisnode)
+      self.nodes.append(thisnode)
+      return thisnode
 
 
   def compare_nodes(self,node1, node2):
@@ -546,6 +645,27 @@ class ROBDD:
       self.root=self.myfalse
     else:
       self.root = self.build_tree(string_expression,factors)
+  def parse2(self,string_expression):
+    """
+    the Robdd construcor.
+    Takes input in form of :A OR A AND ( A XOR B ) OR B for example, and construct the tree accordingly
+    """
+    sop=SOPGenerator()
+    try:
+      string_expression=sop.generate_SOP(string_expression)
+    except:
+      print('non usual input')
+
+    factors=self.extract_variables(string_expression)[0]
+    factors= list(sorted(factors,reverse=True))
+    self.variables=factors.copy()
+    #print(factors ,string_expression)
+    if string_expression=='':
+      self.root=self.myfalse
+    else:
+      self.root = self.build_tree2(string_expression,factors)
+
+
   def trim_bdd(self):
     """
     algorithm:
@@ -579,6 +699,45 @@ class ROBDD:
     for i in reversed(toerase):
         del self.nodes[i]
 
+    #remove nodes that lead to same result in low or high edges
+
+    toerase=[]
+    for i,node in enumerate (self.nodes):
+      if self.compare_nodes(node.low,node.high) and node.high!=None:
+        # node low equals node high
+        for parent in node.parents:
+          if(self.compare_nodes(parent.low,node)):
+            parent.low=node.low
+            if i not in toerase:
+              toerase.append(i)
+          if(self.compare_nodes(parent.high,node)):
+            parent.high=node.low
+            if i not in toerase:
+              toerase.append(i)
+            node.low.parents.append(parent)
+              
+        try:
+          node.parents.clear()
+        except:
+          
+          print("couldn't remove", node , 'from', node.low,' parents ')
+          
+        if node==self.root:
+            toerase.append(i)
+            self.root=node.low
+   
+    for i in reversed(toerase):
+          del self.nodes[i]
+   # print('done trimming')
+    print('trimming new took: ',datetime.now()-now)
+  def trim_bdd2(self):
+    """
+    algorithm:
+     1- iterate over each node, compare it to the other nodes, if it is similar to one 
+     of them, remove it and do corresponding changes(update its parent to ponit to the other node, update this and the other node's parents list)
+     2- iterate over each node, if it low and high edges point to the same node, remove it and do corresponding changes made in step 1
+    """
+    now =datetime.now()
     #remove nodes that lead to same result in low or high edges
 
     toerase=[]
@@ -658,10 +817,15 @@ class ROBDD:
             return [prefix]
         return binary_combinations_recursive(n - 1, prefix + "0") + binary_combinations_recursive(n - 1, prefix + "1")
     return binary_combinations_recursive(n, "")
+  
   def construct(self,expression):
     self.parse(expression)  
     self.trim_bdd()
 
+  def construct2(self,expression):
+    self.parse2(expression)
+
+    
 
 
 def preorder_traverse(root):
@@ -753,10 +917,58 @@ def compare_expressions(exp1,exp2):
 
     return robdd1.compare_nodes(robdd1.root,robdd2.root)
 
+
+def compare_appraoches(exp1):
+    robdd1,robdd2=ROBDD(),ROBDD()
+    constr=datetime.now()
+    robdd1.construct(exp1)
+    print('old approach construction took: ' ,datetime.now()-constr)
+    constr=datetime.now()
+    robdd2.construct2(exp1)
+    print('new approach construction took: ' ,datetime.now()-constr)
+    g=draw_graph(robdd1.root,exp1)
+    g2=draw_graph(robdd2.root,exp1+'appraoch2')
+    print('_______________________________________________________')
+    print('comparing: ',exp1 , 'with building then trimming and trimming itself')
+    now = datetime.now()
+    if robdd1.compare_nodes(robdd1.root,robdd2.root):
+      print("from ROBDD: Expressions are identical")
+    else:
+      print("from ROBDD: Expressions are not identical")
+    after= datetime.now()
+    d1=after-now
+
+    """ aa='1'
+    while (aa!='0'):
+      aa=input('would u like to see the ROBDD visuialization? [1 , 0]: ')
+      if aa=='0':
+        break
+      try:
+        g.render(exp1.replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
+        g2.render((exp1+'appraoch2').replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
+        aa='0'
+      except:
+        print("permission denied, one or both of the files might be already open, close them and try again")
+        aa=='1'
+  
+    aa=input('would u like to see the truth table? [1 , 0]: ')
+    now=datetime.now()
+    if aa!='0':
+      a=robdd1.generate_truthtable()
+      b=robdd2.generate_truthtable()
+      if a==b:
+          print("from truth table: Expressions are identical")
+      else:
+          print("from truth table: Expressions are not identical")
+    after=datetime.now()
+    d2=after-now
+
+    print("ROBDD verification  approach took: ", d1)
+    print("Truth table verification approach took: ", d2) """
+
+    return robdd1.compare_nodes(robdd1.root,robdd2.root)
+
 ######################################################################################################################################################
-
-
-
 
 
 
@@ -771,28 +983,36 @@ def compare_expressions(exp1,exp2):
 #s= " A * B * C + ! A + A * ! B * C"
 
 s1 = " ( NOT D XOR C ) AND ( B XOR A ) AND ( E OR ! E ) * ( E OR F ) AND G XOR X AND Y OR Z OR V OR N OR C " # will take long time
+#compare_appraoches(s1)
 s= " ! A + C + B * ! B "
 
 s = " A OR B XOR C"
 
 s1= " ( a * b + ! a * ! b ) AND ( c * d + ! c * ! d )"
-s= " ! ( a and b ) "
+s= " ! ( ! ( ! A ) ) "
+
+s= ' ab + cd + ef'
+s1= ' ab + ef + cd '
+
 compare_expressions(s,s1)
 
 
 s= " NOT A AND NOT B OR NOT A AND B OR A AND NOT B OR A AND B"
 
 s= " ( A * B ) OR ( NOT A AND B ) | ( A XOR NOT B ) OR ( NOT A AND NOT B ) "
+
 s1 = " A AND ! A + B & ~ B "
 s1=' A OR B AND C OR ( C XOR A ) '
 
+
 s = " ( A XOR B ) AND ( C XOR NOT D )  & ( E or ! E )"
+
 s1 = "(  NOT D XOR C ) AND ( B XOR A )  "
 
 
-s= " g and h or i and j or k and l "
-s1= " a and b or c and d or e and f "
 
+s1= " a or b "
+s= " a and b or c and d or e and f "
 
 
 
