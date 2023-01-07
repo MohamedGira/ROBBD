@@ -118,9 +118,11 @@ class SOPGenerator:
                     if tokens[ti] == 'NOT' or tokens[ti] == '~' or tokens[ti] == '!' or tokens[ti]=='not':
                         # A is an expression enclosed with parentheses
                         if(tokens[ti+1]=='('):
+                            
                             # get the reuslt of this expression
                             nxt=self.get_until_close(tokens,ti+1)
-                            operand= self.parse_boolean_function(''.join(tokens[ti+2:nxt]))
+                            print(' '.join(tokens[ti+2:nxt]))
+                            operand= self.parse_boolean_function(' '.join(tokens[ti+2:nxt]))
                             operand=boolean_values[operand]
                            # print(''.join(tokens[ti+2:nxt]),'with result of ',operand)
                             result = operations[tokens[ti]](operand)
@@ -772,8 +774,10 @@ s1 = " ( NOT D XOR C ) AND ( B XOR A ) AND ( E OR ! E ) * ( E OR F ) AND G XOR X
 s= " ! A + C + B * ! B "
 
 s = " A OR B XOR C"
+
 s1= " ( a * b + ! a * ! b ) AND ( c * d + ! c * ! d )"
-#compare_expressions(s,s1)
+s= " ! ( a and b ) "
+compare_expressions(s,s1)
 
 
 s= " NOT A AND NOT B OR NOT A AND B OR A AND NOT B OR A AND B"
