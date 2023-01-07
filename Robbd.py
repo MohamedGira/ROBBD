@@ -17,6 +17,10 @@ code idea:
 The SOP generator takes an expression such as ( A XOR B ) OR ( NOT A AND B ) OR ( A AND NOT B ) OR ( NOT A AND NOT B ), or simillar one
 generates equevilent SOP expression, which is then passed to the ROBDD class to counsruct the diagram
 """
+
+from datetime import datetime,timedelta
+
+
 import shlex
 import re
 import graphviz
@@ -47,10 +51,10 @@ class SOPGenerator:
            and string representing variable values ie : "00"
            and returns the result
         """
-        function_string=self.parenthesize_expression(string,['NOT','!','~'])
-        
-        function_string=self.parenthesize_expression(function_string,['AND','&','*'])
-        
+        function_string=self.parenthesize_expression(string,['NOT','!','~','not'])
+        #print(function_string)
+        function_string=self.parenthesize_expression(function_string,['AND','&','*','and'])
+        # print(function_string)
         vars=self.extract_variables(string)
         tokens= shlex.split(function_string)
         for i in range(len(vars)):
@@ -72,18 +76,22 @@ class SOPGenerator:
         # Define a dictionary of operator functions
         operations = {
             'AND': lambda x, y:  x&y,
+            'and': lambda x, y:  x&y,
             '*': lambda x, y:  x&y,
             '&': lambda x, y:  x&y,
 
             'OR': lambda x, y: x |y ,
+            'or': lambda x, y: x |y ,
             '+': lambda x, y: x |y ,
             '|': lambda x, y: x |y ,
 
             'NOT': lambda x: not x,
+            'not': lambda x: not x,
             '~': lambda x: not x,
             '!': lambda x: not x,
 
             'XOR': lambda x, y: x ^ y,
+            'xor': lambda x, y: x ^ y,
             '^': lambda x, y: x ^ y,
             
         }
@@ -107,7 +115,7 @@ class SOPGenerator:
                 if len(stack)==0:
                     operand=''
                     #if the current operand is NOT, get the operand. eg: NOT A, we find A in this case    
-                    if tokens[ti] == 'NOT' or tokens[ti] == '~' or tokens[ti] == '!':
+                    if tokens[ti] == 'NOT' or tokens[ti] == '~' or tokens[ti] == '!' or tokens[ti]=='not':
                         # A is an expression enclosed with parentheses
                         if(tokens[ti+1]=='('):
                             # get the reuslt of this expression
@@ -136,7 +144,7 @@ class SOPGenerator:
                     #the stack has one or more elements
 
                     #if the current operand is NOT, get the operand. eg: NOT A, we find A in this case    
-                    if tokens[ti] == 'NOT' or tokens[ti] == '~' or tokens[ti] == '!':
+                    if tokens[ti] == 'NOT' or tokens[ti] == '~' or tokens[ti] == '!' or tokens[ti]=='not':
                         # A is an expression enclosed with parentheses
                         if(tokens[ti+1]=='('):
 
@@ -213,7 +221,7 @@ class SOPGenerator:
         tokens= shlex.split(string_expression)
         #if unary expression such as 'NOT'
         
-        if 'NOT' in exepressions or '~' in exepressions or '!' in exepressions:
+        if 'NOT' in exepressions or '~' in exepressions or '!' in exepressions or 'not' in exepressions:
             i = 0
             while(i<len(tokens)-1):
                 if tokens[i] in exepressions:
@@ -233,7 +241,7 @@ class SOPGenerator:
                                 return string_expression
                             j+=1
                         tokens.insert(j,')')
-                        i=j+1
+                        i=i+2
                     else:
                         tokens.insert(i+2,')')
                         i+=2
@@ -274,7 +282,7 @@ class SOPGenerator:
                                 return string_expression
                             j+=1
                         tokens.insert(j,')')
-                        i=j+1
+                        i=i+2
                     else:
                         tokens.insert(i+2,')')
                         i+=2
@@ -445,7 +453,7 @@ class ROBDD:
     
     string_expression= self.spacify_string(string_expression)
     
-
+    #print(string_expression)
     if len(my_node_variables)==1:
       #here we have 1 term, we can evaluate it using evaluate
       tokens=[i for i in string_expression.split(' ') if i !='']
@@ -543,7 +551,7 @@ class ROBDD:
      of them, remove it and do corresponding changes(update its parent to ponit to the other node, update this and the other node's parents list)
      2- iterate over each node, if it low and high edges point to the same node, remove it and do corresponding changes made in step 1
     """
-    
+    now =datetime.now()
     toerase=[]
     for i,node in enumerate (self.nodes):
       if (len(node.parents)!=0):
@@ -560,9 +568,8 @@ class ROBDD:
                   if i not in toerase:
                     toerase.append(i)
 
-                node2.parents.append(parent)
-              while len(node.parents)>0:
-                node.parents.pop()
+              node2.parents.extend(node.parents)
+              node.parents.clear()
                   
 
                # print([t.variable for t in node.parents],node)
@@ -588,8 +595,7 @@ class ROBDD:
             node.low.parents.append(parent)
               
         try:
-          while len(node.low.parents)>0:
-              node.low.parents.pop()
+          node.parents.clear()
         except:
           
           print("couldn't remove", node , 'from', node.low,' parents ')
@@ -601,7 +607,7 @@ class ROBDD:
     for i in reversed(toerase):
           del self.nodes[i]
    # print('done trimming')
-
+    print('trimming new took: ',datetime.now()-now)
   
   def evaluate(self,expression):
     """takes string expression, and return the robdd output"""
@@ -638,7 +644,7 @@ class ROBDD:
       print('  |',out)
       res.append(out)
     
-    print('')
+    print('number of combinations = ',2**len(inputs[0]))
     return res
  
 
@@ -707,27 +713,42 @@ def compare_expressions(exp1,exp2):
     g2=draw_graph(robdd2.root,exp2)
     print('_______________________________________________________')
     print('comparing: ',exp1 , 'with', exp2)
+    now = datetime.now()
     if robdd1.compare_nodes(robdd1.root,robdd2.root):
       print("from ROBDD: Expressions are identical")
     else:
       print("from ROBDD: Expressions are not identical")
+    after= datetime.now()
+    d1=after-now
 
-    aa=input('would u like to see the ROBDD visuialization? [1 , 0]: ')
-    
-    if aa!='0':
-      g.render(exp1.replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
-      g2.render(exp2.replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
+    aa='1'
+    while (aa!='0'):
+      aa=input('would u like to see the ROBDD visuialization? [1 , 0]: ')
+      if aa=='0':
+        break
+      try:
+        g.render(exp1.replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
+        g2.render(exp2.replace('|', ' OR ').replace('*', ' AND ').replace('!',' NOT ').replace('~','NOT'),path,view=True)
+        aa='0'
+      except:
+        print("permission denied, one or both of the files might be already open, close them and try again")
+        aa=='1'
   
     aa=input('would u like to see the truth table? [1 , 0]: ')
+    now=datetime.now()
     if aa!='0':
       a=robdd1.generate_truthtable()
       b=robdd2.generate_truthtable()
       if a==b:
           print("from truth table: Expressions are identical")
-          return True
       else:
           print("from truth table: Expressions are not identical")
-          return False
+    after=datetime.now()
+    d2=after-now
+
+    print("ROBDD verification  approach took: ", d1)
+    print("Truth table verification approach took: ", d2)
+
     return robdd1.compare_nodes(robdd1.root,robdd2.root)
 
 ######################################################################################################################################################
@@ -746,26 +767,27 @@ def compare_expressions(exp1,exp2):
 # You can any of the following formats
 #s= " A * B  + ! A * C + A * ! B * C  "
 #s= " A * B * C + ! A + A * ! B * C"
-s = " ( NOT D XOR C ) AND ( B XOR A ) AND ( E OR ! E ) * ( E OR F ) AND G XOR X AND Y OR Z "
 
-s1= " ! A + C + B * ! B "
+s1 = " ( NOT D XOR C ) AND ( B XOR A ) AND ( E OR ! E ) * ( E OR F ) AND G XOR X AND Y OR Z OR V OR N OR C " # will take long time
+s= " ! A + C + B * ! B "
 
-
-compare_expressions(s,s1)
 s = " A OR B XOR C"
-
+s1= " ( a * b + ! a * ! b ) AND ( c * d + ! c * ! d )"
+#compare_expressions(s,s1)
 
 
 s= " NOT A AND NOT B OR NOT A AND B OR A AND NOT B OR A AND B"
-s1 = "(  NOT D XOR C ) AND ( B XOR A )  "
 
 s= " ( A * B ) OR ( NOT A AND B ) | ( A XOR NOT B ) OR ( NOT A AND NOT B ) "
 s1 = " A AND ! A + B & ~ B "
-
-s = " ( A XOR B ) AND ( C XOR NOT D ) "
 s1=' A OR B AND C OR ( C XOR A ) '
 
+s = " ( A XOR B ) AND ( C XOR NOT D )  & ( E or ! E )"
+s1 = "(  NOT D XOR C ) AND ( B XOR A )  "
 
+
+s= " g and h or i and j or k and l "
+s1= " a and b or c and d or e and f "
 
 
 
