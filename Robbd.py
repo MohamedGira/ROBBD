@@ -935,6 +935,11 @@ def compare_appraoches(exp1):
 
     return robdd1.compare_nodes(robdd1.root,robdd2.root)
 
+def visualize_graph(stringexpression):
+   bdd=ROBDD()
+   bdd.construct(stringexpression)
+   g=draw_graph(bdd.root)
+   g.render(s.replace('|',' OR ').replace('*',' AND '),path,view=True)
 ######################################################################################################################################################
 
 
